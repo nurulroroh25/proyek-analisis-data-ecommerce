@@ -1,16 +1,35 @@
-# E-Commerce Public Data Analysis Dashboard 📊
+# E-Commerce Public Data Analytics Dashboard 
 
-Proyek ini merupakan hasil akhir dari analisis data pada dataset E-Commerce Public. Dashboard ini dibuat untuk memberikan gambaran mengenai tren penjualan produk serta segmentasi pelanggan menggunakan metode analisis RFM.
+## Deskripsi
+Dashboard ini dikembangkan untuk menganalisis data publik E-Commerce dengan fokus pada tren penjualan bulanan, kategori produk dengan pendapatan tertinggi, serta pengelompokan pelanggan menggunakan analisis RFM.
 
-## Cara Menjalankan Dashboard
+## Struktur File
+Karena proyek ini menggunakan struktur sederhana, berikut adalah file-file utamanya:
+- `app.py`: File utama untuk menjalankan dashboard Streamlit.
+- `requirements.txt`: Daftar library Python yang diperlukan.
+- `notebook.ipynb`: Dokumentasi lengkap proses analisis data (Wrangling hingga EDA).
+- `*.csv`: Dataset yang digunakan dalam analisis.
 
-### 1. Persiapan Lingkungan (Lokal)
-Pastikan Anda memiliki Python yang sudah terinstal. Disarankan menggunakan virtual environment.
+## Setup Environment - Shell/Terminal
+Untuk menjalankan proyek ini di komputer lokal, ikuti langkah-langkah berikut:
 
-conda create --name main-ds python=3.9
-conda activate main-ds
+1. **Clone repository ini ke komputer Anda:**
+```
+git clone https://github.com/nurulroroh25/proyek-analisis-data-ecommerce.git
+```
+
+3. **Masuk ke direktori proyek:**
+```
+cd proyek-analisis-data-ecommerce
+```
+   
+5. **Install semua library yang dibutuhkan:**
+```
 pip install -r requirements.txt
+```
 
-### 2. Menjalankan Dashboard Streamlit
-
-streamlit run dashboard/app.py
+## Run streamlit app
+Jalankan perintah berikut di terminal:
+```
+streamlit run app.py
+```
