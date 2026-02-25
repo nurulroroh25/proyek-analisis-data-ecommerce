@@ -13,14 +13,14 @@ import streamlit as st
 import plotly.express as px
 
 # Set page config
-st.set_page_config(page_title="E-Commerce Public Dashboard", layout="wide")
+st.set_page_config(page_title="E-Commerce Data Dashboard", layout="wide")
 
 # ==========================================
-# LOAD DATA & PREPROCESSING
+# 1. LOAD DATA & PREPROCESSING
 # ==========================================
 @st.cache_data
 def load_data():
-    # Load datasets (Pastikan file-file ini ada di folder yang sama)
+    # Load datasets
     customers = pd.read_csv('customers_dataset.csv')
     orders = pd.read_csv('orders_dataset.csv')
     order_items = pd.read_csv('order_items_dataset.csv')
@@ -40,66 +40,67 @@ def load_data():
 
     return main_df
 
-df = load_data()
+# Memanggil data
+try:
+    df = load_data()
+except Exception as e:
+    st.error(f"Gagal memuat data. Pastikan file CSV tersedia. Error: {e}")
+    st.stop()
 
 # ==========================================
-# SIDEBAR (Filter)
+# 2. SIDEBAR (Filter Rentang Waktu)
 # ==========================================
 with st.sidebar:
     st.title("By Nurul Baroroh")
     st.image("https://github.com/dicodingacademy/assets/raw/main/logo.png") 
 
-    # Rentang waktu
+    # Ambil range tanggal dari dataset
     min_date = df['order_purchase_timestamp'].min().date()
     max_date = df['order_purchase_timestamp'].max().date()
 
-    try:
-        # Handling jika user baru memilih satu tanggal agar tidak error
-        date_range = st.date_input(
-            label='Rentang Waktu',
-            min_value=min_date,
-            max_value=max_date,
-            value=[min_date, max_date]
-        )
-        
-        if len(date_range) == 2:
-            start_date, end_date = date_range
-        else:
-            start_date = end_date = date_range[0]
-            
-    except Exception:
-        st.error("Silakan pilih rentang tanggal (Mulai dan Selesai).")
-        st.stop()
+    # Widget Filter Tanggal
+    date_range = st.date_input(
+        label='Pilih Rentang Waktu',
+        min_value=min_date,
+        max_value=max_date,
+        value=[min_date, max_date]
+    )
 
-# Filter Data Berdasarkan Waktu
-main_df_filtered = df[(df['order_purchase_timestamp'].dt.date >= start_date) &
-                       (df['order_purchase_timestamp'].dt.date <= end_date)]
+# Pastikan user memilih Start Date dan End Date
+if len(date_range) == 2:
+    start_date, end_date = date_range
+    # Filter Data Utama
+    main_df_filtered = df[(df['order_purchase_timestamp'].dt.date >= start_date) & 
+                          (df['order_purchase_timestamp'].dt.date <= end_date)]
+else:
+    st.warning("Silakan pilih rentang tanggal pada sidebar.")
+    st.stop()
 
 # ==========================================
-# DASHBOARD MAIN PAGE
+# 3. DASHBOARD MAIN PAGE
 # ==========================================
 st.title("E-Commerce Public Data Analysis Dashboard 📊")
 
-# --- HANDLING JIKA DATA KOSONG ---
+# --- CEK JIKA HASIL FILTER KOSONG ---
 if main_df_filtered.empty:
-    st.warning(f"⚠️ Data tidak tersedia untuk rentang waktu {start_date} hingga {end_date}.")
-    st.info("Saran: Coba perluas rentang waktu filter Anda pada sidebar.")
+    st.error(f"⚠️ Data tidak tersedia untuk rentang waktu {start_date} s/d {end_date}.")
+    st.info("Penyebab umum: Rentang tanggal terlalu sempit atau tidak ada transaksi pada tanggal tersebut. Silakan pilih tanggal lain.")
 else:
     # Menampilkan Metric Utama
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1:
         total_revenue = main_df_filtered['total_sales'].sum()
         st.metric("Total Revenue", value=f"IDR {total_revenue:,.2f}")
-    with col2:
+    with col_m2:
         total_orders = main_df_filtered['order_id'].nunique()
         st.metric("Total Orders", value=total_orders)
-    with col3:
+    with col_m3:
         total_customers = main_df_filtered['customer_unique_id'].nunique()
         st.metric("Unique Customers", value=total_customers)
 
     st.divider()
 
-    # --- PERTANYAAN 1: TREN PENJUALAN ---
+    # --- BAGIAN 1: TREN PENJUALAN ---
     st.subheader("Tren Penjualan Bulanan")
     monthly_sales = main_df_filtered.resample(rule='M', on='order_purchase_timestamp').agg({
         "order_id": "nunique",
@@ -107,53 +108,39 @@ else:
     }).reset_index()
 
     if not monthly_sales.empty:
-        fig_trend = px.line(
-            monthly_sales,
-            x='order_purchase_timestamp',
-            y='total_sales',
-            labels={'total_sales': 'Total Penjualan', 'order_purchase_timestamp': 'Bulan'},
-            template="plotly_white"
-        )
+        fig_trend = px.line(monthly_sales, x='order_purchase_timestamp', y='total_sales', markers=True, template="plotly_white")
         st.plotly_chart(fig_trend, use_container_width=True)
     else:
-        st.info("Data tren bulanan tidak cukup untuk ditampilkan.")
+        st.info("Data tren tidak mencukupi untuk visualisasi bulanan.")
 
-    # --- TOP KATEGORI ---
-    st.subheader("Top 10 Kategori Produk dengan Penjualan Tertinggi")
+    # --- BAGIAN 2: TOP KATEGORI ---
+    st.subheader("Top 10 Kategori Produk Terlaris")
     category_sales = main_df_filtered.groupby('product_category_name_english')['total_sales'].sum().sort_values(ascending=False).head(10).reset_index()
-
-    fig_category = px.bar(
-        category_sales,
-        x='total_sales',
-        y='product_category_name_english',
-        orientation='h',
-        labels={'total_sales': 'Total Penjualan', 'product_category_name_english': 'Kategori'},
-        color='total_sales',
-        color_continuous_scale='Blues'
-    )
+    
+    fig_category = px.bar(category_sales, x='total_sales', y='product_category_name_english', orientation='h', color='total_sales')
     fig_category.update_layout(yaxis={'categoryorder':'total ascending'})
     st.plotly_chart(fig_category, use_container_width=True)
 
     st.divider()
 
-    # --- PERTANYAAN 2: RFM ANALYSIS ---
+    # --- BAGIAN 3: RFM ANALYSIS (DENGAN ERROR HANDLING) ---
     st.subheader("Customer Segmentation (RFM Analysis)")
 
-    # Hitung RFM
-    # Gunakan tanggal terakhir dari filter sebagai snapshot_date agar recency tidak aneh
+    # Perhitungan RFM dasar
     snapshot_date = main_df_filtered['order_purchase_timestamp'].max() + pd.Timedelta(days=1)
-    
     rfm = main_df_filtered.groupby('customer_unique_id').agg({
         'order_purchase_timestamp': lambda x: (snapshot_date - x.max()).days,
         'order_id': 'nunique',
         'total_sales': 'sum'
     }).reset_index()
-
     rfm.columns = ['customer_unique_id', 'recency', 'frequency', 'monetary']
 
-    # Cek apakah jumlah baris cukup untuk scoring qcut
-    if len(rfm) >= 5:
-        # Menggunakan duplicates='drop' untuk mengatasi error jika banyak data bernilai sama
+    # Logika TRY-EXCEPT untuk menangani Error qcut (Reviewer Request)
+    try:
+        # Cek minimal data unik untuk scoring quintile (5 kelompok)
+        if rfm['recency'].nunique() < 5 or rfm['monetary'].nunique() < 5:
+            raise ValueError("Data unik tidak cukup")
+
         rfm['R_score'] = pd.qcut(rfm['recency'], 5, labels=[5, 4, 3, 2, 1], duplicates='drop')
         rfm['F_score'] = pd.cut(rfm['frequency'], bins=[0, 1, 2, 5, 10, 100], labels=[1, 2, 3, 4, 5], include_lowest=True)
         rfm['M_score'] = pd.qcut(rfm['monetary'], 5, labels=[1, 2, 3, 4, 5], duplicates='drop')
@@ -171,20 +158,21 @@ else:
         segment_dist = rfm['segment'].value_counts().reset_index()
 
         col_rfm1, col_rfm2 = st.columns([1, 1])
-
         with col_rfm1:
             fig_rfm = px.pie(segment_dist, values='count', names='segment', title="Distribusi Segmen Pelanggan")
             st.plotly_chart(fig_rfm, use_container_width=True)
-
         with col_rfm2:
-            st.write("Statistik Segmen (Rata-rata)")
-            rfm_stats = rfm.groupby('segment').agg({
-                'recency': 'mean',
-                'frequency': 'mean',
-                'monetary': 'mean'
-            }).round(1)
+            st.write("Rata-rata Statistik per Segmen")
+            rfm_stats = rfm.groupby('segment').agg({'recency': 'mean', 'frequency': 'mean', 'monetary': 'mean'}).round(1)
             st.dataframe(rfm_stats, use_container_width=True)
-    else:
-        st.warning("⚠️ Data pelanggan terlalu sedikit untuk melakukan segmentasi RFM. Silakan pilih rentang waktu yang lebih luas.")
+
+    except ValueError:
+        # Pesan jika data tidak cukup (Solusi revisi)
+        st.warning("⚠️ **Analisis RFM Tidak Dapat Ditampilkan**")
+        st.info("""
+            Data pada rentang waktu ini tidak memiliki variasi yang cukup untuk dihitung secara statistik (segmentasi memerlukan minimal 5 kelompok data yang berbeda).
+            
+            **Saran:** Perluas rentang waktu filter Anda (misalnya pilih minimal 1-3 bulan) untuk melihat segmentasi pelanggan.
+        """)
 
 st.caption("Copyright (c) Nurul Baroroh 2026")
